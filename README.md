@@ -143,3 +143,4 @@ A：可以手动按 `SKILL.md` 在 Blender 里操作；但让 AI 自动干活需
 - 配套 Blender 插件：**blender_Stylized-Shading-Tools**（风格化着色工具）
 - 技能参考手册：`stylized-blender/skills/stylized-shading/sas_reference.md`（Stylized Asset Suite 参数逻辑）、`material_pipeline.md`（材质管线与 EEVEE 踩坑修复）
 - 本仓库内容 = DeepSeek Harness 用户目录中的 `stylized-blender` 预设原样归档，部署无需修改任何配置。
+- 调用我这个风格化渲染插件的 skill 暂时还不完善，可能用不顺手，或者需要多轮对话来解决一个小问题
