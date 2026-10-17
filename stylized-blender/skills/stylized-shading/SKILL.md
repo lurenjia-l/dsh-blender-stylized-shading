@@ -644,3 +644,40 @@ node.inputs['密度'].default_value = 0.05
 > 本技能目录 `sas_reference.md` 保留为"参数逻辑参考手册"（SAS 各效果的输入默认值/内部结构），供 §M2 映射与 P4 发散设计时查证语义；它不是本插件的使用指南。
 
 > 本技能目录 `material_pipeline.md` 为**材质管线与灯光响应补充文档**（作者补充，务必先读）：补充「主节点 ↔ 光源拓展BSDF」的核心分工（主节点对灯光反应做二分/平滑与亮暗染色；光源拓展组对 Lightgroup ID 反应做多光源染色）、推荐串联管线，以及 EEVEE 实机踩坑修复（渐变控制器关联/双 Background+Is Camera Ray 世界环境/漫射组压暗问题等）。制作或还原材质时，先按该文档的分工定位选择节点组，再按本指南调参。
+
+## 11. 自检：这个 skill 现在还能不能用
+
+本技能目录带一个自检脚本 `verify_skill.py`，把 §3–§6 记录的操作符全跑一遍（配方套用 + 串联、材质结构查询、原位调参回读、散装 7 组、全能组、创意组、渐变控制器、创意体积、节点修复、参数 schema 抽查），跑完自动清场。
+
+**三种跑法（任选其一）**：
+
+```python
+# 1) DSH blender 插件（最常用：跑在你正开着的 GUI Blender 里）
+#    <skill_dir> = 本技能所在目录。Windows 通常形如：
+#    E:\...\.dsh\skills\stylized-shading
+blender_rt_do(file=r"<skill_dir>\verify_skill.py")
+
+# 2) Blender 文本编辑器：打开该文件 → Run Script
+# 3) 命令行（需该 Blender 用户配置里已启用插件）
+#    blender.exe -b --python "<skill_dir>\verify_skill.py"
+```
+
+**判据**：输出里有一行 `VERIFY_SKILL {...}`，用 JSON 看：
+
+| 字段 | 含义 |
+|---|---|
+| `ok` | `true` = 全部通过；`false` = 有步骤失败，看 `steps[]` 里 `ok=false` 的 `error` |
+| `passed` / `failed` | 通过 / 失败步数（正常 11 / 0） |
+| `steps[]` | 每步的 `step` 名称与 `detail` 证据（组名、控制器名、回读参数值等） |
+
+**常见失败对应关系**：
+
+| 失败步骤 | 原因 | 处理 |
+|---|---|---|
+| `env: Blender 版本 / 插件 / 操作符` | 插件没启用，或版本太老缺操作符 | 偏好设置 → 插件 → 启用 `blender_Stylized-Shading-Tools` |
+| `apply_style_preset` | `style_presets.py` 缺失 / 模板 `my shader.blend` 被移动 | 检查插件目录下 `shader file/my shader.blend` 与 `style_presets.py` 都在 |
+| `add_bulk_groups` / `style_add_custom_group` | 模板文件损坏 | 用插件自带 `blender_Stylized-Shading-Tools.zip` 重装 |
+| 参数 schema 抽查 | 插件升级后端口改名，本 skill 的 §6 参数表过期 | 按新 schema 更新 §6 对应表格 |
+| 找不到 `主节点` 实例 | 当前场景没有可用的活动物体/材质 | 先选中一个网格再跑 |
+
+> 自检是"能跑通"的底线证明，不等于画面好看：配色/明暗取舍仍按 §7.5 决策树渲染迭代。

@@ -1,15 +1,19 @@
 # dsh-blender-stylized-shading
 
-**DeepSeek Harness 风格化着色（Blender NPR）模式 + stylized-shading 技能** 一键部署仓库。
+**DeepSeek Harness 风格化着色（Blender NPR）模式 + stylized-shading 技能** 部署仓库。
 
-本仓库打包了两样东西，它们配套使用，让你（或任何 AI）在 DeepSeek Harness 里直接对话就能驱动 Blender 制作卡通 / 赛璐璐 / 三渲二风格化（NPR）材质：
+两样东西配套使用，让你（或任何 AI）在 DeepSeek Harness 里直接对话就能驱动 Blender 做卡通 / 赛璐璐 / 三渲二（NPR）材质：
 
 | 内容 | 是什么 | 位置 |
 |---|---|---|
-| **风格化着色模式** | 一个完整可选的 **Agent 预设（preset）**，名为 `风格化着色(Blender NPR)`。它把标准编码 Agent 的全部能力 + stylized-shading 技能预装进一个会话 | `stylized-blender/` |
-| **stylized-shading 技能** | 一份给 AI 读的**使用说明书**，教 AI 正确调用"风格化着色工具"插件（blender_Stylized-Shading-Tools）的 NPR 节点组，并把你的自然语言需求翻译成节点参数 | `stylized-blender/skills/stylized-shading/` |
+| **风格化着色模式** | 一个可选的 **Agent 预设**，名为 `风格化着色(Blender NPR)`：标准编码 Agent 的全部能力 + 运行时检查工具 + 精选技能 | `stylized-blender/cordis.patch.yml` |
+| **stylized-shading 技能** | 给 AI 读的**使用说明书**：怎么调用「风格化着色工具」插件的 NPR 节点组，并把自然语言需求翻译成节点参数 | `stylized-blender/skills/stylized-shading/` |
 
-> 配套插件 **blender_Stylized-Shading-Tools**（"风格化着色工具"）本体**不在本仓库**，需要单独安装到 Blender（见"你需要准备"）。
+> 配套 Blender 插件 **blender_Stylized-Shading-Tools**（「风格化着色工具」）**不在本仓库**，需单独装进 Blender。
+
+> ⚠️ **兼容性**：本仓库自 2026-10 起适配 **DeepSeek Harness 0.2.x**。
+> 0.2 不再读取 `.agent-presets/` 目录式预设，预设必须是一条 `@deepseek-ai/dsh-agent-preset` 声明行。
+> 旧的 `preset.yml` + `agent.cordis.yml` 已移到 `legacy/`，**不要再用**（它们不会生效）。
 
 ---
 
@@ -17,130 +21,152 @@
 
 ```
 dsh-blender-stylized-shading/
-├── README.md          ← 你正在读的：给人类看的下载/部署/调用说明
-├── AI_DEPLOY.md       ← 给 AI 看的部署手册：把仓库丢给任何 AI，它按此自动部署
+├── README.md                ← 给人类看的安装/调用说明
+├── AI_DEPLOY.md             ← 给 AI 看的部署 SOP（把仓库丢给 AI 即可）
 ├── .gitignore
-└── stylized-blender/  ← 整个文件夹 = 一个 Agent 预设，复制到 .agent-presets 即可用
-    ├── preset.yml                     # 预设名称与描述（roster 靠它显示）
-    ├── agent.cordis.yml               # 预设组成（技能注册、工具、plan/compaction 等）
-    └── skills/
-        ├── stylized-shading/          # ★ 核心技能（本文档重点）
-        │   ├── SKILL.md               # 主指南：节点组清单/添加/串联/调参/风格配方/创意效果
-        │   ├── sas_reference.md       # Stylized Asset Suite 参数逻辑参考（发散建组用）
-        │   └── material_pipeline.md   # 材质管线与灯光响应分工、EEVEE 踩坑修复
-        ├── cordis-plugin-development/         # 配套技能：写/改 Cordis 插件
-        └── editing-cordis-compositions/       # 配套技能：写/改 agent 组成文件
+├── stylized-blender/
+│   ├── cordis.patch.yml     ★ 预设声明（追加到 profile 补丁）
+│   ├── install.py           ★ 一键安装脚本（技能 + 预设，自动备份、UTF-8 安全、不重复插入）
+│   └── skills/
+│       ├── stylized-shading/            ★ 核心技能
+│       │   ├── SKILL.md                 # 节点组清单/添加/串联/调参/风格配方/创意效果/自检
+│       │   ├── sas_reference.md         # Stylized Asset Suite 参数逻辑参考（发散建组用）
+│       │   ├── material_pipeline.md     # 材质管线与灯光响应分工、EEVEE 踩坑修复
+│       │   └── verify_skill.py          # 一键自检脚本（11 项断言）
+│       ├── cordis-plugin-development/   # 配套技能：写/改 Cordis 插件
+│       └── editing-cordis-compositions/ # 配套技能：写/改 agent 组成文件
+└── legacy/                  ← 0.1.x 目录式预设，仅作历史参考
+    ├── preset.yml
+    └── agent.cordis.yml
 ```
 
 ---
 
 ## 你需要准备
 
-1. **DeepSeek Harness（dsh）** —— 本模式运行的宿主，Web 界面通常跑在 `http://127.0.0.1:3080`。
-2. **Blender 3.4+**，并安装启用插件 **blender_Stylized-Shading-Tools**（"风格化着色工具"，作者 路人甲）。
-   - 插件启用后，Blender 侧边栏 N 键 → "风格化材质"标签页可用；节点编辑器 Shift+A → "风格化节点"菜单。
-   - ⚠️ 技能文档里写的插件路径（`E:\rj\blender\plugin\addons\...`）是**作者本机路径**，你自己的机器上按实际安装位置为准，AI 只把它当参考。
-3. **（推荐）Blender MCP 连接** —— 让 AI 直接通过 `execute_blender_code` 驱动 Blender；没有它你也能手动照技能文档操作。
+1. **DeepSeek Harness 0.2.x**（桌面版或 `dsh web`）。Web 界面地址以实际启动输出为准。
+2. **Blender 3.4+**，并安装启用插件 **blender_Stylized-Shading-Tools**。
+   - 启用后：Blender 侧边栏 N → 「风格化材质」；节点编辑器 Shift+A → 「风格化节点」。
+   - 技能里写的插件路径（`E:\rj\blender\plugin\addons\...`）是作者本机路径，仅作参考。
+3. （推荐）DSH 的 Blender 连接（`@dsh-external/dsh-blender-plugin` 或 Blender MCP），让 AI 直接驱动 Blender。
 
 ---
 
-## 快速开始（3 步）
+## 安装
 
-### 第 1 步：下载
-
-```bash
-git clone https://github.com/lurenjia-l/dsh-blender-stylized-shading.git
-# 或者：GitHub 页面 Code → Download ZIP，解压到任意位置
-```
-
-### 第 2 步：部署（把 `stylized-blender` 整个文件夹放进预设目录）
-
-预设目录位置（两者取其一）：
-
-- 没设置 `DSH_HOME` 环境变量：`%USERPROFILE%\.dsh\.agent-presets\`
-- 设置了 `DSH_HOME`：`%DSH_HOME%\.agent-presets\`
+### 最省事：一条命令
 
 ```powershell
-# 示例（Windows）：
-$dst = "$env:USERPROFILE\.dsh\.agent-presets"
-Copy-Item -Recurse ".\dsh-blender-stylized-shading\stylized-blender" $dst
-# 最终应看到：$dst\stylized-blender\preset.yml
+# 先干跑看看它认到的 DSH_HOME / profile / 行号
+python .\stylized-blender\install.py --dry-run
+# 确认无误后真装（技能目录与补丁文件都会先备份成 *.bak-<时间戳>）
+python .\stylized-blender\install.py
+# 需要指定时： --dsh-home "D:\dsh-home" --profile web
 ```
 
-> ⚠️ 是复制 `stylized-blender` **这个文件夹本身**（不是它的父目录），最终路径必须是 `...\.agent-presets\stylized-blender\preset.yml`。
+脚本会做两件事，并刻意绕开手工部署最容易踩的两个坑（编码写坏中文、重复插入同一 id）。
 
-### 第 3 步：调用
+### 手工：两步
 
-1. 刷新/打开 Harness Web 界面（`http://127.0.0.1:3080`）。
-2. 新建会话，在 **Agent 预设**列表里选择 **`风格化着色(Blender NPR)`**。
-3. 直接说需求，例如：
-   - 「把选中的物体做成风格化卡通（三渲二）材质」
-   - 「给选中的球做一个拉丝金属材质」
-   - 「改成清透玻璃，边缘要有菲涅耳亮边」
-   - 「加漫画排线，像素描」
-   - 「场景里加雾 / 加光柱」
+#### 第 1 步：技能 → 用户技能目录
 
-AI 会自动加载 `stylized-shading` 技能，把需求翻译成插件的节点组与参数。
+DSH 0.2 的 `skill-filesystem` 默认就扫描 `<DSH_HOME>/skills`，放这里任何模式都能用：
+
+```powershell
+$DSH_HOME = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE ".dsh" }
+New-Item -ItemType Directory -Force "$DSH_HOME\skills" | Out-Null
+Copy-Item -Recurse -Force ".\stylized-blender\skills\stylized-shading" "$DSH_HOME\skills\"
+# 结果应为：$DSH_HOME\skills\stylized-shading\SKILL.md
+```
+
+> 为什么不再由预设自带技能目录：0.1.x 的 preset 用 `createRequire(baseUrl).resolve('@deepseek-ai/dsh-agent-preset/package.json')` 定位 `skills/`，
+> 而 0.2 起该包只存在于 `app.asar`、不再装进 profile 的 `node_modules`，那条表达式会抛 `MODULE_NOT_FOUND`，
+> 导致整个预设 mount 失败（列表里能看到模式，但开不出会话）。所以现在改为「技能进用户目录，预设不引用技能路径」。
+
+#### 第 2 步：预设 → profile 补丁
+
+把 `stylized-blender/cordis.patch.yml` 的整段（一个 `- insert:` 块）**追加**到：
+
+```
+<DSH_HOME>/profiles/<profile>/cordis.patch.yml     # 桌面版通常是 desktop
+```
+
+要求：
+
+- 文件必须是 **UTF-8（无 BOM）**。用 VS Code / Notepad++ 打开粘贴最稳；**Windows PowerShell 5.1 的 `Add-Content` 默认按 ANSI 写，会把中文写坏**，别用它。
+- 若里面已经有一条 `- id: preset-stylized-blender`（旧版装过），**先删掉旧的那段**再追加，否则同一 id 重复会导致该预设声明加载失败。
+- 该补丁层是**热加载**的：保存后无需重启 DSH。
+
+> 嫌手工麻烦：把本仓库地址丢给 Harness 里的 AI，说「按 AI_DEPLOY.md 部署这个仓库」，它会用 UTF-8 安全的方式完成两步并自检。
 
 ---
 
-## 模式 vs 技能：到底调用哪一个？
+## 验证
 
-这是最容易混淆的一点，对照如下：
+1. 插件/加载器里能看到 `preset-stylized-blender` 这一行，状态 **active**（`plugin_manager` → `list_plugins`，或用「设置 → 插件」）。
+2. **新建**一个会话（不要复用旧会话：会话会钉住启动时的预设 revision）→ 模式列表出现 **风格化着色(Blender NPR)** → 能正常发第一条消息。
+3. 技能自检（Blender 里跑一遍全部文档化操作符，跑完自动清场）：
+
+```python
+# DSH blender 插件
+blender_rt_do(file=r"<DSH_HOME>\skills\stylized-shading\verify_skill.py")
+# 或：Blender 文本编辑器打开该文件 → Run Script
+# 或：blender.exe -b --python "<DSH_HOME>\skills\stylized-shading\verify_skill.py"
+```
+
+判据：输出里有一行 `VERIFY_SKILL {"ok":true,"passed":11,"failed":0,...}`。哪一步失败、为什么、怎么修，见 `SKILL.md` §11 的对照表。
+
+---
+
+## 升级排障：0.2.x 踩过的坑
+
+| 现象 | 根因 | 修法 |
+|---|---|---|
+| 模式在列表里，但选中/新建会话直接失败（roster 标 broken） | `skill-filesystem.customSkillDirs` 里的 `createRequire(...).resolve('@deepseek-ai/dsh-agent-preset/package.json')` 在 0.2 解析不到（包只在 `app.asar`） | 删掉 `customSkillDirs`；技能放 `<DSH_HOME>/skills`（本仓库已改好） |
+| 第一条消息就报 `unknown prompt variable "{{cwd}}"` | 0.2 的提示词变量只剩 `provider` / `model`，`cwd` 已移除 | persona 里不要写 `{{cwd}}`；工作目录由 `working-directory` 作为系统提示上下文注入 |
+| 配置里 `backgroundMode` 无效 | 0.2 的 `dsh-tool-subagent` 已移除该键（续聊子代理变成默认能力） | 删掉该键 |
+| 升级后模式从列表里消失 | 0.2 不再扫描 `.agent-presets/` 目录式预设 | 用本仓库的 `cordis.patch.yml`（声明式） |
+| 手工粘贴后整份补丁不生效 | 中文被写成 ANSI / 或 YAML 缩进被改 | 用 UTF-8 编辑器重贴；缩进必须与文件里其他 `- insert:` 块同级 |
+
+---
+
+## 模式 vs 技能：调用哪一个？
 
 | | **风格化着色模式（preset）** | **stylized-shading 技能（skill）** |
 |---|---|---|
-| 本质 | 一个 **Agent 预设**，是"会话级别的整套配置" | 一份 **技能文档**，是"教 AI 怎么干活的手册" |
-| 形态 | `stylized-blender/` 文件夹（preset.yml + agent.cordis.yml + skills/） | `skills/stylized-shading/` 下的 md 文件 |
-| 安装位置 | `%USERPROFILE%\.dsh\.agent-presets\` | 随 preset 一起装（`customSkillDirs` 自动指向 preset 内 `skills/`），也可被任何会话单独加载 |
-| 何时用 | **绝大多数情况**。新会话选它，就同时拥有：完整工具链 + 技能自动可用 | 单独用：你的会话不是这个预设，但想临时借用这份手册时，让 AI 读该技能 |
-| 一句话 | **「选这个模式 = 开箱即用」** | **「技能是模式的内置大脑」** |
+| 本质 | 一个 **Agent 预设** = 会话级整套配置 | 一份 **技能文档** = 教 AI 怎么干活的手册 |
+| 形态 | `stylized-blender/cordis.patch.yml`（一条声明行） | `skills/stylized-shading/` 下的 md + 自检脚本 |
+| 安装位置 | `<DSH_HOME>/profiles/<profile>/cordis.patch.yml` | `<DSH_HOME>/skills/stylized-shading/` |
+| 何时用 | **绝大多数情况**：新会话选它 = 完整工具链 + 技能可用 | 单用：当前会话不是这个预设，但想临时借用这份手册 |
+| 一句话 | **选这个模式 = 开箱即用** | **技能是模式的内置大脑** |
 
-**推荐用法**：直接用模式（预设）。技能作为模式的一部分自动生效，无需单独操心。
-
----
-
-## 验证部署成功
-
-- [ ] `%USERPROFILE%\.dsh\.agent-presets\stylized-blender\` 下存在 `preset.yml`、`agent.cordis.yml`、`skills\stylized-shading\SKILL.md`
-- [ ] Harness Web 新建会话时，预设列表出现 **风格化着色(Blender NPR)**
-- [ ] 会话开始后，AI 的工具/技能目录里能看到 `stylized-shading` 技能（告诉 AI「你现在有哪些技能？」，它应列出该技能并给出简介）
+> 技能放在用户技能目录有一个好处：**任何模式**都看得到它，不再依赖预设的路径解析（这也是升级后唯一稳妥的形态）。
 
 ---
 
-## 给 AI 的自动化部署（一条命令都不用你自己想）
+## 常见问题
 
-把本仓库地址发给任何一个 DeepSeek Harness AI，说：
+**Q：模式列表里没有「风格化着色(Blender NPR)」？**
+A：先确认 `<DSH_HOME>/profiles/<profile>/cordis.patch.yml` 里那段 `- insert:` 加进去了、缩进没被改、且文件是 UTF-8。补丁是热加载的，保存后刷新页面即可；仍不出现就看加载器里 `preset-stylized-blender` 这一行的状态与诊断。
 
-> 把这个仓库 https://github.com/lurenjia-l/dsh-blender-stylized-shading 部署到本地
-
-AI 会读取仓库里的 **`AI_DEPLOY.md`**（专为 AI 编写的标准作业程序），自动完成：探测 `DSH_HOME` → 下载 → 复制到 `.agent-presets\stylized-blender` → 校验文件 → 汇报结果。你只需要最后刷新页面选预设。
-
----
-
-## 常见问题（FAQ）
-
-**Q：预设列表里没有"风格化着色(Blender NPR)"？**
-A：检查复制路径是否正确：必须是 `...\.agent-presets\stylized-blender\preset.yml`（多套了一层或少了 `stylized-blender` 这层目录都不行）；复制后刷新页面。
+**Q：能看到模式，但一选就报错 / 列表里标红？**
+A：说明声明行加载了、但组合 mount 失败。用上表逐条对照（0.2 最常见就是 `customSkillDirs` 与 `{{cwd}}`）。
 
 **Q：会话里看不到 stylized-shading 技能？**
-A：确认 `agent.cordis.yml` 和 `skills\stylized-shading\` 一起复制过去了（技能由 preset 内的 `skill-filesystem` 行注册，`customSkillDirs` 相对 preset 目录解析，所以**整目录复制即可，无需改配置**）。
+A：确认 `<DSH_HOME>/skills/stylized-shading/SKILL.md` 存在（是这一层，不是再多套一层 `stylized-shading/`）。
 
-**Q：技能里写的插件路径是 `E:\rj\blender\...`，我机器上没有？**
-A：那是作者本机路径，仅作参考。你只需把"风格化着色工具"插件装到自己的 Blender 并启用；AI 通过 Blender MCP 的 `execute_blender_code` 操作时用的是 Blender 内部 API，不依赖该绝对路径。
+**Q：技能里写的插件路径 `E:\rj\blender\...` 我机器上没有？**
+A：作者本机路径，仅作参考。你只需把「风格化着色工具」装进自己的 Blender；AI 通过 Blender 连接操作时用的是 Blender 内部 API。
 
-**Q：升级 DeepSeek Harness 会不会覆盖我的预设？**
-A：不会。本预设装在用户目录 `%USERPROFILE%\.dsh\.agent-presets\`，只有部署自带的 `agent-presets` 目录会在升级时被覆盖；用户目录的内容始终保留。
-
-**Q：没有 Blender MCP 也能用吗？**
-A：可以手动按 `SKILL.md` 在 Blender 里操作；但让 AI 自动干活需要 Blender MCP 连接。
+**Q：升级 DSH 会覆盖这些吗？**
+A：`<DSH_HOME>/skills/` 和 profile 的 `cordis.patch.yml`（用户层）在升级时保留；被覆盖的是应用自带的 bundle。若哪天 DSH 改了预设字段，按上表思路对着新版官方 `standard` 预设比对即可。
 
 ---
 
 ## 关于
 
 - 作者：路人甲
-- 配套 Blender 插件：**blender_Stylized-Shading-Tools**（风格化着色工具）
-- 技能参考手册：`stylized-blender/skills/stylized-shading/sas_reference.md`（Stylized Asset Suite 参数逻辑）、`material_pipeline.md`（材质管线与 EEVEE 踩坑修复）
-- 本仓库内容 = DeepSeek Harness 用户目录中的 `stylized-blender` 预设原样归档，部署无需修改任何配置。
-- 调用我这个风格化渲染插件的 skill 暂时还不完善，可能用不顺手，或者需要多轮对话来解决一个小问题
+- 配套插件：**blender_Stylized-Shading-Tools**（风格化着色工具）
+- 参考手册：`stylized-blender/skills/stylized-shading/sas_reference.md`（SAS 参数逻辑）、`material_pipeline.md`（材质管线与 EEVEE 踩坑）
+- 本仓库内容 = 作者本机在用的这套预设与技能的归档；0.2.x 下经实测可运行（见 `verify_skill.py` 的 11 项自检）。
+- 这套 skill 还在迭代，碰到不顺手的地方欢迎提 issue。
